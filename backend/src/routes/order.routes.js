@@ -25,7 +25,7 @@ router.get(
 
 router.get(
   "/:id",
-  requireRole("CUSTOMER", "ADMIN"),
+  requireRole("CUSTOMER", "DRIVER", "ADMIN"),
   validate(orderIdParamSchema, "params"),
   orderController.getById,
 );

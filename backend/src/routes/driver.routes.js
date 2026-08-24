@@ -15,5 +15,6 @@ router.post(
   driverController.postLocation,
 );
 router.get("/orders", driverController.listOrders);
+router.get("/available", driverController.listAvailable);
 
 module.exports = router;

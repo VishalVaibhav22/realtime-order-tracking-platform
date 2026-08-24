@@ -19,4 +19,13 @@ async function listOrders(req, res, next) {
   }
 }
 
-module.exports = { postLocation, listOrders };
+async function listAvailable(req, res, next) {
+  try {
+    const orders = await orderService.listAvailableOrders();
+    res.status(200).json({ success: true, data: { orders } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { postLocation, listOrders, listAvailable };

@@ -2,7 +2,6 @@ const prisma = require("../config/prisma");
 const { AppError } = require("../middleware/error.middleware");
 const locationService = require("./location.service");
 const { publishStatusUpdate } = require("../pubsub/location.pubsub");
-const { calculateEta } = require("./eta.service");
 
 // an order counts as "active" for a driver's order list
 const ACTIVE_STATUSES = ["ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
@@ -42,27 +41,26 @@ async function listOrders(customerId, status) {
 }
 
 async function getOrderById(orderId, user) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      driver: { include: { user: { select: { id: true, name: true, email: true } } } },
+    },
+  });
 
   if (!order) {
     throw new AppError(404, "ORDER_NOT_FOUND", "Order not found");
   }
 
-  // admin can view any order, a customer only their own
+  // admin can view any order, a customer or driver only their own
   if (user.role === "CUSTOMER" && order.customerId !== user.id) {
     throw new AppError(403, "FORBIDDEN", "This order does not belong to you");
   }
+  if (user.role === "DRIVER" && order.driverId !== user.driverProfile?.id) {
+    throw new AppError(403, "FORBIDDEN", "This order is not assigned to you");
+  }
 
-  const location = await locationService.getLatestLocation(order.driverId);
-
-  const eta = location
-    ? calculateEta(
-        location.latitude,
-        location.longitude,
-        order.destinationLatitude,
-        order.destinationLongitude,
-      )
-    : null;
+  const { location, eta } = await locationService.getLocationAndEta(order);
 
   return { ...order, location, eta };
 }
@@ -81,6 +79,16 @@ async function listOrdersForDriver(user) {
   const rest = orders.filter((order) => !ACTIVE_STATUSES.includes(order.status));
 
   return [...active, ...rest];
+}
+
+// unclaimed orders any driver could accept, oldest first
+async function listAvailableOrders() {
+  const orders = await prisma.order.findMany({
+    where: { status: "PLACED", driverId: null },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return orders;
 }
 
 async function acceptOrder(orderId, user) {
@@ -169,6 +177,7 @@ module.exports = {
   listOrders,
   getOrderById,
   listOrdersForDriver,
+  listAvailableOrders,
   acceptOrder,
   updateStatus,
 };

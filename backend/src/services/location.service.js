@@ -3,6 +3,7 @@ const redis = require("../config/redis");
 const env = require("../config/env");
 const { AppError } = require("../middleware/error.middleware");
 const { publishLocationUpdate } = require("../pubsub/location.pubsub");
+const { calculateEta } = require("./eta.service");
 
 // location pings are only accepted while the order is actually moving
 const TRACKABLE_STATUSES = ["PICKED_UP", "IN_TRANSIT"];
@@ -86,4 +87,23 @@ async function getLatestLocation(driverId) {
   return raw ? JSON.parse(raw) : null;
 }
 
-module.exports = { recordLocation, getLatestLocation };
+// current location plus eta to the order's destination, together since
+// every caller that wants one wants the other
+async function getLocationAndEta(order) {
+  const location = await getLatestLocation(order.driverId);
+
+  if (!location) {
+    return { location: null, eta: null };
+  }
+
+  const eta = calculateEta(
+    location.latitude,
+    location.longitude,
+    order.destinationLatitude,
+    order.destinationLongitude,
+  );
+
+  return { location, eta };
+}
+
+module.exports = { recordLocation, getLatestLocation, getLocationAndEta };
