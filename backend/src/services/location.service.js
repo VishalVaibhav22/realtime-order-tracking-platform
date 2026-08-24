@@ -2,7 +2,7 @@ const prisma = require("../config/prisma");
 const redis = require("../config/redis");
 const env = require("../config/env");
 const { AppError } = require("../middleware/error.middleware");
-const { getIO } = require("../websocket/socket");
+const { publishLocationUpdate } = require("../pubsub/location.pubsub");
 
 // location pings are only accepted while the order is actually moving
 const TRACKABLE_STATUSES = ["PICKED_UP", "IN_TRANSIT"];
@@ -43,30 +43,23 @@ async function recordLocation(user, { orderId, latitude, longitude }) {
   }
 
   const driverId = user.driverProfile.id;
+  const timestamp = new Date().toISOString();
 
   // every ping, always - this is the hot current-location write
-  const payload = {
-    orderId,
-    latitude,
-    longitude,
-    timestamp: new Date().toISOString(),
-  };
-  await redis.set(locationKey(driverId), JSON.stringify(payload), {
+  const locationPayload = { orderId, latitude, longitude, timestamp };
+  await redis.client.set(locationKey(driverId), JSON.stringify(locationPayload), {
     EX: env.LOCATION_TTL_SECONDS,
   });
 
   await writeHistoryIfDue(orderId, driverId, latitude, longitude);
 
-  // single backend instance for now, so a direct emit reaches every subscribed socket
-  const io = getIO();
-  if (io) {
-    io.to(`order:${orderId}`).emit("LOCATION_UPDATE", payload);
-  }
+  // publish, don't emit directly - a subscriber (maybe on another instance) does the emitting
+  await publishLocationUpdate({ orderId, driverId, latitude, longitude, timestamp });
 }
 
 // only insert a LocationHistory row if enough time has passed since the last one
 async function writeHistoryIfDue(orderId, driverId, latitude, longitude) {
-  const lastPersistedAt = await redis.get(throttleKey(orderId));
+  const lastPersistedAt = await redis.client.get(throttleKey(orderId));
   const now = Date.now();
 
   const dueForWrite =
@@ -80,7 +73,7 @@ async function writeHistoryIfDue(orderId, driverId, latitude, longitude) {
     data: { orderId, driverId, latitude, longitude },
   });
 
-  await redis.set(throttleKey(orderId), String(now), { EX: THROTTLE_KEY_TTL_SECONDS });
+  await redis.client.set(throttleKey(orderId), String(now), { EX: THROTTLE_KEY_TTL_SECONDS });
 }
 
 // current location always comes from redis, never from LocationHistory
@@ -89,7 +82,7 @@ async function getLatestLocation(driverId) {
     return null;
   }
 
-  const raw = await redis.get(locationKey(driverId));
+  const raw = await redis.client.get(locationKey(driverId));
   return raw ? JSON.parse(raw) : null;
 }
 

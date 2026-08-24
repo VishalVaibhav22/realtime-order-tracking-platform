@@ -11,6 +11,7 @@ const env = {
   REDIS_URL: process.env.REDIS_URL || "redis://localhost:6379",
   LOCATION_TTL_SECONDS: Number(process.env.LOCATION_TTL_SECONDS) || 120,
   HISTORY_THROTTLE_SECONDS: Number(process.env.HISTORY_THROTTLE_SECONDS) || 15,
+  INSTANCE_ID: process.env.INSTANCE_ID || "api-1",
 };
 
 if (!process.env.DATABASE_URL) {

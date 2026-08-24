@@ -39,13 +39,13 @@ function initSocket(httpServer) {
   });
 
   io.on("connection", (socket) => {
-    console.log("socket connected:", socket.id);
+    console.log(`[${env.INSTANCE_ID}] socket connected: ${socket.id}`);
 
     socket.on("join_order", (data, callback) => joinOrder(socket, data, callback));
     socket.on("leave_order", (data) => leaveOrder(socket, data));
 
     socket.on("disconnect", () => {
-      console.log("socket disconnected:", socket.id);
+      console.log(`[${env.INSTANCE_ID}] socket disconnected: ${socket.id}`);
     });
   });
 
@@ -85,7 +85,7 @@ async function joinOrder(socket, data, callback) {
 
   // send the current redis location right away, no waiting for the next ping
   if (order.driverId) {
-    const raw = await redis.get(`driver:${order.driverId}:location`);
+    const raw = await redis.client.get(`driver:${order.driverId}:location`);
     if (raw) {
       socket.emit("LOCATION_UPDATE", JSON.parse(raw));
     }
