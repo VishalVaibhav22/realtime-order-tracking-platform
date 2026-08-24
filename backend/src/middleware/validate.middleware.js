@@ -1,7 +1,7 @@
-// runs a zod schema against the request body
-function validate(schema) {
+// runs a zod schema against req.body, req.query or req.params
+function validate(schema, source = "body") {
   return (req, res, next) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[source]);
 
     if (!result.success) {
       return res.status(400).json({
@@ -13,7 +13,7 @@ function validate(schema) {
       });
     }
 
-    req.body = result.data;
+    req[source] = result.data;
     next();
   };
 }

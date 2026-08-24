@@ -1,7 +1,6 @@
 const express = require("express");
 const authRoutes = require("./routes/auth.routes");
-const authMiddleware = require("./middleware/auth.middleware");
-const requireRole = require("./middleware/role.middleware");
+const orderRoutes = require("./routes/order.routes");
 const { errorHandler } = require("./middleware/error.middleware");
 
 const app = express();
@@ -13,11 +12,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-
-// temporary route to demonstrate role middleware, remove later
-app.get("/api/test/driver-only", authMiddleware, requireRole("DRIVER"), (req, res) => {
-  res.json({ success: true, data: { message: "hello driver", user: req.user } });
-});
+app.use("/api/orders", orderRoutes);
 
 app.use(errorHandler);
 
