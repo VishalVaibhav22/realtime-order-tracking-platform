@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: order_tracking
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d order_tracking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # two instances of the exact same backend image, differing only by
+  # PORT/INSTANCE_ID, proving the redis pub/sub relay works across processes
+  api:
+    build:
+      context: ./backend
+    image: sway-backend:local
+    environment:
+      PORT: 3000
+      INSTANCE_ID: api-1
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/order_tracking?schema=public
+      JWT_SECRET: docker-dev-secret-change-me
+      JWT_EXPIRES_IN: 24h
+      REDIS_URL: redis://redis:6379
+      LOCATION_TTL_SECONDS: 120
+      HISTORY_THROTTLE_SECONDS: 15
+      AVERAGE_SPEED_KMPH: 25
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  api2:
+    build:
+      context: ./backend
+    image: sway-backend:local
+    environment:
+      PORT: 3000
+      INSTANCE_ID: api-2
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/order_tracking?schema=public
+      JWT_SECRET: docker-dev-secret-change-me
+      JWT_EXPIRES_IN: 24h
+      REDIS_URL: redis://redis:6379
+      LOCATION_TTL_SECONDS: 120
+      HISTORY_THROTTLE_SECONDS: 15
+      AVERAGE_SPEED_KMPH: 25
+    # 3001 collides with an unrelated project on this machine, so api2 is
+    # published on 3002 instead - both instances still listen on 3000
+    # inside their own container
+    ports:
+      - "3002:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # the browser talks to the api on the host's mapped port, not the
+        # container-internal service name - service names only resolve
+        # inside the compose network, not from the host browser
+        VITE_API_URL: http://localhost:3000/api
+        VITE_SOCKET_URL: http://localhost:3000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

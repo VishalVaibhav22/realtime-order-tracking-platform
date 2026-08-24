@@ -1,4 +1,6 @@
-const BASE_URL = "/api";
+// "/api" works through the vite dev proxy - a production build has no
+// proxy, so docker points this at the api container's host-mapped port
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 const TOKEN_KEY = "sway_token";
 
 function getToken() {
