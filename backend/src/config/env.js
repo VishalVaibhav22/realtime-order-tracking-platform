@@ -6,6 +6,8 @@ const fallbackDatabaseUrl =
 const env = {
   PORT: Number(process.env.PORT) || 3000,
   DATABASE_URL: process.env.DATABASE_URL || fallbackDatabaseUrl,
+  JWT_SECRET: process.env.JWT_SECRET || "dev-secret-change-me",
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "24h",
 };
 
 if (!process.env.DATABASE_URL) {
@@ -13,6 +15,10 @@ if (!process.env.DATABASE_URL) {
     "DATABASE_URL is not set. Using local default for development:",
     env.DATABASE_URL,
   );
+}
+
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET is not set. Using an insecure default for development only");
 }
 
 module.exports = env;
