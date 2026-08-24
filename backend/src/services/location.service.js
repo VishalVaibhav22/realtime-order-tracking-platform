@@ -1,8 +1,21 @@
 const prisma = require("../config/prisma");
+const redis = require("../config/redis");
+const env = require("../config/env");
 const { AppError } = require("../middleware/error.middleware");
 
 // location pings are only accepted while the order is actually moving
 const TRACKABLE_STATUSES = ["PICKED_UP", "IN_TRANSIT"];
+
+// the throttle key itself just needs to outlive one delivery, not be tunable
+const THROTTLE_KEY_TTL_SECONDS = 3600;
+
+function locationKey(driverId) {
+  return `driver:${driverId}:location`;
+}
+
+function throttleKey(orderId) {
+  return `order:${orderId}:lastPersistedAt`;
+}
 
 async function recordLocation(user, { orderId, latitude, longitude }) {
   if (!user.driverProfile) {
@@ -28,25 +41,47 @@ async function recordLocation(user, { orderId, latitude, longitude }) {
     );
   }
 
-  // phase 4 on purpose - every single ping becomes a row, no throttling yet
-  await prisma.locationHistory.create({
-    data: {
-      orderId,
-      driverId: user.driverProfile.id,
-      latitude,
-      longitude,
-    },
+  const driverId = user.driverProfile.id;
+
+  // every ping, always - this is the hot current-location write
+  const payload = JSON.stringify({
+    orderId,
+    latitude,
+    longitude,
+    timestamp: new Date().toISOString(),
   });
+  await redis.set(locationKey(driverId), payload, { EX: env.LOCATION_TTL_SECONDS });
+
+  await writeHistoryIfDue(orderId, driverId, latitude, longitude);
 }
 
-// phase 4 on purpose - current location is just the newest history row
-async function getLatestLocation(orderId) {
-  const location = await prisma.locationHistory.findFirst({
-    where: { orderId },
-    orderBy: { recordedAt: "desc" },
+// only insert a LocationHistory row if enough time has passed since the last one
+async function writeHistoryIfDue(orderId, driverId, latitude, longitude) {
+  const lastPersistedAt = await redis.get(throttleKey(orderId));
+  const now = Date.now();
+
+  const dueForWrite =
+    !lastPersistedAt || now - Number(lastPersistedAt) >= env.HISTORY_THROTTLE_SECONDS * 1000;
+
+  if (!dueForWrite) {
+    return;
+  }
+
+  await prisma.locationHistory.create({
+    data: { orderId, driverId, latitude, longitude },
   });
 
-  return location;
+  await redis.set(throttleKey(orderId), String(now), { EX: THROTTLE_KEY_TTL_SECONDS });
+}
+
+// current location always comes from redis, never from LocationHistory
+async function getLatestLocation(driverId) {
+  if (!driverId) {
+    return null;
+  }
+
+  const raw = await redis.get(locationKey(driverId));
+  return raw ? JSON.parse(raw) : null;
 }
 
 module.exports = { recordLocation, getLatestLocation };

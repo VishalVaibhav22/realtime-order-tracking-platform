@@ -51,7 +51,7 @@ async function getOrderById(orderId, user) {
     throw new AppError(403, "FORBIDDEN", "This order does not belong to you");
   }
 
-  const location = await locationService.getLatestLocation(orderId);
+  const location = await locationService.getLatestLocation(order.driverId);
 
   return { ...order, location };
 }
