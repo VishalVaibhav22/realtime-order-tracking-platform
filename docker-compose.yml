@@ -59,9 +59,7 @@ services:
       LOCATION_TTL_SECONDS: 120
       HISTORY_THROTTLE_SECONDS: 15
       AVERAGE_SPEED_KMPH: 25
-    # 3001 collides with an unrelated project on this machine, so api2 is
-    # published on 3002 instead - both instances still listen on 3000
-    # inside their own container
+    
     ports:
       - "3002:3000"
     depends_on:

@@ -129,6 +129,14 @@ docker compose up --build
 - Redis Pub/Sub does not store missed messages
 - Redis is currently a single point of failure
 
+## Future Additions
+
+- Add a load balancer for better traffic handling
+- Add Redis high availability
+- Improve ETA using real road and traffic data
+- Add smarter driver assignment
+- Improve GPS smoothing for better location accuracy
+
 ---
 
 ## License
