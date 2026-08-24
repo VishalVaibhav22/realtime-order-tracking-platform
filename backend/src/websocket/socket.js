@@ -5,6 +5,7 @@ const env = require("../config/env");
 const prisma = require("../config/prisma");
 const redis = require("../config/redis");
 const authService = require("../services/auth.service");
+const { calculateEta } = require("../services/eta.service");
 
 const orderIdSchema = z.string().uuid();
 
@@ -87,7 +88,14 @@ async function joinOrder(socket, data, callback) {
   if (order.driverId) {
     const raw = await redis.client.get(`driver:${order.driverId}:location`);
     if (raw) {
-      socket.emit("LOCATION_UPDATE", JSON.parse(raw));
+      const location = JSON.parse(raw);
+      const eta = calculateEta(
+        location.latitude,
+        location.longitude,
+        order.destinationLatitude,
+        order.destinationLongitude,
+      );
+      socket.emit("LOCATION_UPDATE", { ...location, eta });
     }
   }
 }

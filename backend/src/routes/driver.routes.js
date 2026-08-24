@@ -9,7 +9,11 @@ const router = express.Router();
 
 router.use(authMiddleware, requireRole("DRIVER"));
 
-router.post("/location", validate(postLocationSchema), driverController.postLocation);
+router.post(
+  "/location",
+  validate(postLocationSchema),
+  driverController.postLocation,
+);
 router.get("/orders", driverController.listOrders);
 
 module.exports = router;

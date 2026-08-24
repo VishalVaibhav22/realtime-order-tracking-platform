@@ -12,6 +12,7 @@ const env = {
   LOCATION_TTL_SECONDS: Number(process.env.LOCATION_TTL_SECONDS) || 120,
   HISTORY_THROTTLE_SECONDS: Number(process.env.HISTORY_THROTTLE_SECONDS) || 15,
   INSTANCE_ID: process.env.INSTANCE_ID || "api-1",
+  AVERAGE_SPEED_KMPH: Number(process.env.AVERAGE_SPEED_KMPH) || 25,
 };
 
 if (!process.env.DATABASE_URL) {

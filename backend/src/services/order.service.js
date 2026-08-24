@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const { AppError } = require("../middleware/error.middleware");
 const locationService = require("./location.service");
 const { publishStatusUpdate } = require("../pubsub/location.pubsub");
+const { calculateEta } = require("./eta.service");
 
 // an order counts as "active" for a driver's order list
 const ACTIVE_STATUSES = ["ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
@@ -54,7 +55,16 @@ async function getOrderById(orderId, user) {
 
   const location = await locationService.getLatestLocation(order.driverId);
 
-  return { ...order, location };
+  const eta = location
+    ? calculateEta(
+        location.latitude,
+        location.longitude,
+        order.destinationLatitude,
+        order.destinationLongitude,
+      )
+    : null;
+
+  return { ...order, location, eta };
 }
 
 async function listOrdersForDriver(user) {
