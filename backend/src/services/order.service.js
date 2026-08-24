@@ -1,5 +1,9 @@
 const prisma = require("../config/prisma");
 const { AppError } = require("../middleware/error.middleware");
+const locationService = require("./location.service");
+
+// an order counts as "active" for a driver's order list
+const ACTIVE_STATUSES = ["ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
 
 // which statuses an order in a given status is allowed to move to next
 const TRANSITIONS = {
@@ -47,7 +51,25 @@ async function getOrderById(orderId, user) {
     throw new AppError(403, "FORBIDDEN", "This order does not belong to you");
   }
 
-  return order;
+  const location = await locationService.getLatestLocation(orderId);
+
+  return { ...order, location };
+}
+
+async function listOrdersForDriver(user) {
+  if (!user.driverProfile) {
+    throw new AppError(403, "NO_DRIVER_PROFILE", "This account has no driver profile");
+  }
+
+  const orders = await prisma.order.findMany({
+    where: { driverId: user.driverProfile.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const active = orders.filter((order) => ACTIVE_STATUSES.includes(order.status));
+  const rest = orders.filter((order) => !ACTIVE_STATUSES.includes(order.status));
+
+  return [...active, ...rest];
 }
 
 async function acceptOrder(orderId, user) {
@@ -121,6 +143,7 @@ module.exports = {
   createOrder,
   listOrders,
   getOrderById,
+  listOrdersForDriver,
   acceptOrder,
   updateStatus,
 };
