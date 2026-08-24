@@ -3,13 +3,14 @@ const authRoutes = require("./routes/auth.routes");
 const orderRoutes = require("./routes/order.routes");
 const driverRoutes = require("./routes/driver.routes");
 const { errorHandler } = require("./middleware/error.middleware");
+const env = require("./config/env");
 
 const app = express();
 
 app.use(express.json());
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: "ok", instanceId: env.INSTANCE_ID });
 });
 
 app.use("/api/auth", authRoutes);
