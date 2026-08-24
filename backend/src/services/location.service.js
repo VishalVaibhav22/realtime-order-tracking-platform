@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const redis = require("../config/redis");
 const env = require("../config/env");
 const { AppError } = require("../middleware/error.middleware");
+const { getIO } = require("../websocket/socket");
 
 // location pings are only accepted while the order is actually moving
 const TRACKABLE_STATUSES = ["PICKED_UP", "IN_TRANSIT"];
@@ -44,15 +45,23 @@ async function recordLocation(user, { orderId, latitude, longitude }) {
   const driverId = user.driverProfile.id;
 
   // every ping, always - this is the hot current-location write
-  const payload = JSON.stringify({
+  const payload = {
     orderId,
     latitude,
     longitude,
     timestamp: new Date().toISOString(),
+  };
+  await redis.set(locationKey(driverId), JSON.stringify(payload), {
+    EX: env.LOCATION_TTL_SECONDS,
   });
-  await redis.set(locationKey(driverId), payload, { EX: env.LOCATION_TTL_SECONDS });
 
   await writeHistoryIfDue(orderId, driverId, latitude, longitude);
+
+  // single backend instance for now, so a direct emit reaches every subscribed socket
+  const io = getIO();
+  if (io) {
+    io.to(`order:${orderId}`).emit("LOCATION_UPDATE", payload);
+  }
 }
 
 // only insert a LocationHistory row if enough time has passed since the last one

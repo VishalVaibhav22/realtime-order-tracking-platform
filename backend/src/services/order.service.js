@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const { AppError } = require("../middleware/error.middleware");
 const locationService = require("./location.service");
+const { getIO } = require("../websocket/socket");
 
 // an order counts as "active" for a driver's order list
 const ACTIVE_STATUSES = ["ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
@@ -14,6 +15,18 @@ const TRANSITIONS = {
   DELIVERED: [],
   FAILED: [],
 };
+
+function emitStatusUpdate(orderId, status, previousStatus) {
+  const io = getIO();
+  if (io) {
+    io.to(`order:${orderId}`).emit("STATUS_UPDATE", {
+      orderId,
+      status,
+      previousStatus,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
 
 async function createOrder(customerId, data) {
   const order = await prisma.order.create({
@@ -105,6 +118,8 @@ async function acceptOrder(orderId, user) {
     },
   });
 
+  emitStatusUpdate(orderId, "ACCEPTED", "PLACED");
+
   return updated;
 }
 
@@ -135,6 +150,8 @@ async function updateStatus(orderId, user, newStatus) {
       deliveredAt: newStatus === "DELIVERED" ? new Date() : order.deliveredAt,
     },
   });
+
+  emitStatusUpdate(orderId, newStatus, order.status);
 
   return updated;
 }
