@@ -8,13 +8,13 @@ SWAY is a delivery tracking platform where customers can track drivers in real t
 
 ## Architecture
 
-![System Architecture](docs/01-system-architecture.png)
+<img src="docs/01-system-architecture.png" alt="System Architecture" width="600">
 
 ---
 
 ## How It Works
 
-![Realtime Location Flow](docs/02-realtime-location-flow.png)
+<img src="docs/02-realtime-location-flow.png" alt="Realtime Location Flow" width="720">
 
 When a driver sends a location update:
 
@@ -38,7 +38,7 @@ Redis keeps the latest location, while PostgreSQL stores the location history.
 
 ## Multiple Backend Instances
 
-![Multi-Instance Realtime](docs/03-multi-instance-realtime.png)
+<img src="docs/03-multi-instance-realtime.png" alt="Multi-Instance Realtime" width="780">
 
 SWAY can run on multiple backend instances.
 
@@ -48,13 +48,13 @@ Redis Pub/Sub sends realtime updates between them, so a customer can still recei
 
 ## Order Flow
 
-![Order State Machine](docs/04-order-state-machine.png)
+<img src="docs/04-order-state-machine.png" alt="Order State Machine" width="220">
 
 ---
 
 ## Data Storage
 
-![Data Responsibility](docs/05-data-responsibility.png)
+<img src="docs/05-data-responsibility.png" alt="Data Responsibility" width="520">
 
 ### PostgreSQL
 
@@ -70,15 +70,15 @@ Stores the latest driver location and handles realtime communication between bac
 
 ### Customer
 
-![Customer](docs/customer.png)
+<img src="docs/customer.png" alt="Customer" width="580">
 
 ### Driver
 
-![Driver](docs/driver.png)
+<img src="docs/driver.png" alt="Driver" width="580">
 
 ### Admin
 
-![Admin](docs/admin.png)
+<img src="docs/admin.png" alt="Admin" width="580">
 
 ---
 
